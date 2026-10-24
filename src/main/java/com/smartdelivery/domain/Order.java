@@ -1,5 +1,6 @@
 package com.smartdelivery.domain;
 import java.util.List;
+import java.util.ArrayList;
 
 public class Order {
 	private List<OrderItem> items ;
@@ -13,7 +14,7 @@ public class Order {
 			throw new IllegalArgumentException("The Order is Empty");
 		}
 		
-		this.items = items;
+		this.items = new ArrayList<>(items);
 		this.status= OrderStatus.PENDING;	
 	}
 	
