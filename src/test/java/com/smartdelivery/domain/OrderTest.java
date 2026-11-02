@@ -140,4 +140,17 @@ public class OrderTest {
 	    assertEquals(OrderStatus.CONFIRMED, order.getStatus());
 	}
 	
+
+ 	//YASMEEN
+     @Test
+     void rejectsOrderWithNullItem() {
+     List<OrderItem> items = new ArrayList<>();
+     items.add(null);
+
+    assertThrows(
+            IllegalArgumentException.class,
+            () -> new Order(items)
+      );
+   }
+
 }
