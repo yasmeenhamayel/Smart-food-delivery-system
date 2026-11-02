@@ -1,0 +1,66 @@
+package com.smartdelivery.domain;
+
+import java.util.List;
+import java.util.ArrayList;
+
+public class Order {
+    private List<OrderItem> items;
+    private OrderStatus status;
+
+    public Order(List<OrderItem> items) {
+        if (items == null) {
+            throw new IllegalArgumentException("Null Order");
+        }
+
+        if (items.isEmpty()) {
+            throw new IllegalArgumentException("The Order is Empty");
+        }
+
+        for (OrderItem item : items) {
+            if (item == null) {
+                throw new IllegalArgumentException("Order item cannot be null");
+            }
+        }
+
+        this.items = new ArrayList<>(items);
+        this.status = OrderStatus.PENDING;
+    }
+
+    public double getTotal() {
+        double total = 0;
+
+        for (OrderItem item : items) {
+            total += item.getSubtotal();
+        }
+
+        return total;
+    }
+
+    public OrderStatus getStatus() {
+        return status;
+    }
+
+    public void cancel() {
+        if (status != OrderStatus.PENDING) {
+            throw new IllegalStateException("Only pending orders can be cancelled");
+        }
+
+        status = OrderStatus.CANCELLED;
+    }
+
+    public void confirm() {
+        if (status != OrderStatus.PENDING) {
+            throw new IllegalStateException();
+        }
+
+        status = OrderStatus.CONFIRMED;
+    }
+
+    public void startPreparing() {
+        if (status != OrderStatus.CONFIRMED) {
+            throw new IllegalStateException();
+        }
+
+        status = OrderStatus.PREPARING;
+    }
+}
