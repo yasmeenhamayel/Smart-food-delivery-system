@@ -8,7 +8,7 @@ import java.util.ArrayList;
 public class OrderTest {
 	
 	@Test
-	void gettersReturnCorrectValues() {
+	void initializesOrderWithPendingStatus() {
 		MenuItem item1 = new MenuItem("Faheta", 8 , true);
 		OrderItem orderitem1 = new OrderItem(item1 , 5);
 
@@ -66,4 +66,78 @@ public class OrderTest {
 		assertThrows( IllegalArgumentException.class, ()->new Order(name));
 
 	}
+
+	
+	@Test
+	void changesPendingOrderToConfirmed() {
+	    MenuItem menu = new MenuItem("Pizza", 15, true);
+	    OrderItem item = new OrderItem(menu, 3);
+	    Order order = new Order(List.of(item));
+
+	    order.confirm();
+
+	    assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+	}
+	
+	
+	@Test
+	void rejectsConfirmingNonPendingOrder() {
+	    MenuItem menu = new MenuItem("Pizza", 15, true);
+	    OrderItem item = new OrderItem(menu, 3);
+	    Order order = new Order(List.of(item));
+
+	    order.confirm();
+
+	    assertThrows(IllegalStateException.class, () -> order.confirm());
+	}
+	
+	
+	@Test
+	void changesConfirmedOrderToPreparing() {
+	    MenuItem menu = new MenuItem("Pizza", 15, true);
+	    OrderItem item = new OrderItem(menu, 3);
+	    Order order = new Order(List.of(item));
+
+	    order.confirm();
+	    order.startPreparing();
+
+	    assertEquals(OrderStatus.PREPARING, order.getStatus());
+	}
+	
+	
+	@Test
+	void rejectsStartingPreparationBeforeConfirmation() {
+	    MenuItem menu = new MenuItem("Pizza", 15, true);
+	    OrderItem item = new OrderItem(menu, 3);
+	    Order order = new Order(List.of(item));
+
+	    assertThrows(IllegalStateException.class, () -> order.startPreparing());
+	}
+	
+	
+	@Test
+	void cancelsPendingOrder() {
+	    MenuItem menu = new MenuItem("Pizza", 15, true);
+	    OrderItem item = new OrderItem(menu, 3);
+	    Order order = new Order(List.of(item));
+
+	    order.cancel();
+
+	    assertEquals(OrderStatus.CANCELLED, order.getStatus());
+	}
+	
+	
+	@Test
+	void rejectsCancellingNonPendingOrder() {
+	    MenuItem menu = new MenuItem("Pizza", 15, true);
+	    OrderItem item = new OrderItem(menu, 3);
+	    Order order = new Order(List.of(item));
+
+	    order.confirm();
+
+	    assertThrows(IllegalStateException.class, () -> order.cancel());
+
+	    assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+	}
+	
 }

@@ -22,9 +22,18 @@ public class OrderService {
 		if(order.getTotal() < restaurant.getMinOrderValue()) {
 			throw new IllegalArgumentException("The Order Rejected , Your total order less than the minimum order value in this restaurant");
 		}
-		return order;
-		
-		
+		return order;	
 	}
+	
+	
+	public void cancelOrder(Order order) {
+		if(order == null) {
+			throw new IllegalArgumentException("Null Order");
+		}
+		order.cancel();
+	}
+	
+	
+	
 
 }

@@ -33,6 +33,31 @@ public class Order {
 	public OrderStatus getStatus() {
 		return status;
 	}
+	
+	
+	public void cancel() {
+		if(status != OrderStatus.PENDING) {
+			throw new IllegalStateException("Only pending orders can be cancelled");
+		}
+		status = OrderStatus.CANCELLED;
+	}
+	
+	
+	public void confirm() {
+	    if (status != OrderStatus.PENDING) {
+	        throw new IllegalStateException();
+	    }
+	    status = OrderStatus.CONFIRMED;
+	}
+
+	public void startPreparing() {
+	    if (status != OrderStatus.CONFIRMED) {
+	        throw new IllegalStateException();
+	    }
+	    status = OrderStatus.PREPARING;
+	}
+	
+	
 
 	
 }
