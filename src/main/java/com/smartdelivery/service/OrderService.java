@@ -11,14 +11,35 @@ import pricing.PricingStrategy;
 
 public class OrderService {
 	private DeliveryCostCalculator calculator;
+	private final OrderObserver notificationObserver;
 	
+
+	public OrderService(DeliveryCostCalculator calculator) {
+        if (calculator == null) {
+            throw new IllegalArgumentException("Null Calculator");
+        }
+        this.calculator = calculator;
+        this.notificationObserver = null;
+    }
+
+	public OrderService(OrderObserver notificationObserver) {
+        if (notificationObserver == null) {
+            throw new IllegalArgumentException("Notification observer cannot be null");
+        }
+        this.notificationObserver = notificationObserver;
+        this.calculator = null;
+    }
+
 	
-	
-	public OrderService(DeliveryCostCalculator calculator ) {
+	public OrderService(DeliveryCostCalculator calculator , OrderObserver notificationObserver ) {
 		 if (calculator == null) {
 		        throw new IllegalArgumentException("Null Calculator");
 		    }
 	    this.calculator = calculator;
+		 if (notificationObserver == null) {
+            throw new IllegalArgumentException("Notification observer cannot be null");
+        }
+        this.notificationObserver = notificationObserver;
 	}
 	
 	
@@ -39,6 +60,10 @@ public class OrderService {
 		if(order.getItemTotal() < restaurant.getMinOrderValue()) {
 			throw new IllegalArgumentException("The Order Rejected , Your total order less than the minimum order value in this restaurant");
 		}
+		if (notificationObserver != null) {
+            order.addObserver(notificationObserver);
+        }
+		 order.addObserver(notificationObserver);
 		return order;	
 	}
 	
@@ -61,54 +86,6 @@ public class OrderService {
 		order.cancel();
 	}
 	
-	
-	
-
-    private final OrderObserver notificationObserver;
-
-    public OrderService(OrderObserver notificationObserver) {
-        if (notificationObserver == null) {
-            throw new IllegalArgumentException("Notification observer cannot be null");
-        }
-        this.notificationObserver = notificationObserver;
-    }
-
-    public Order placeOrder(Restaurant restaurant, List<OrderItem> items, Address address) {
-        if (restaurant == null) {
-            throw new IllegalArgumentException("Null Restaurant");
-        }
-
-        if (address == null) {
-            throw new IllegalArgumentException("Null Address");
-        }
-
-        Order order = new Order(items);
-
-        if (!restaurant.getDeliveryAreas().contains(address.getCity())) {
-            throw new IllegalArgumentException(
-                    "The Order Rejected , Your area isn’t covered by the restaurant’s delivery areas"
-            );
-        }
-
-        if (order.getTotal() < restaurant.getMinOrderValue()) {
-            throw new IllegalArgumentException(
-                    "The Order Rejected , Your total order less than the minimum order value in this restaurant"
-            );
-        }
-
-        order.addObserver(notificationObserver);
-
-        return order;
-    }
-
-    public void cancelOrder(Order order) {
-        if (order == null) {
-            throw new IllegalArgumentException("Null Order");
-        }
-
-        order.cancel();
-    }
-
     // US3.1: Assign a specific driver to an order.
     public void assignDriver(Order order, Driver driver) {
         if (order == null) {
