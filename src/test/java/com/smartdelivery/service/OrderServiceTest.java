@@ -2,9 +2,10 @@
 package com.smartdelivery.service;
 
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
+
 import java.util.List;
 import java.util.Set;
 
@@ -16,82 +17,295 @@ public class OrderServiceTest {
 
     private OrderService createService() {
         OrderObserver observer = mock(OrderObserver.class);
-        return new OrderService(observer);
+        DeliveryCostCalculator calculator = new DeliveryCostCalculator(2);
+
+        return new OrderService(observer, calculator);
     }
+
+    // =========================
+    // US4.1 and US4.2: Order Creation
+    // =========================
 
     @Test
     void returnCorrectOrder() {
-        Restaurant restaurant = new Restaurant("Pizza House", true, 20,
-                Set.of("Nablus", "Tubas", "Tamoon"));
+
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 20,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Address address = new Address("Nablus", "Taluza", "main street",
-                "in front of yellow house");
+
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
+
         OrderService service = createService();
 
-        Order result = service.placeOrder(restaurant, List.of(item), address);
+        Order result = service.placeOrder(
+                restaurant, List.of(item), address, 5
+        );
 
         assertNotNull(result);
         assertEquals(OrderStatus.PENDING, result.getStatus());
-        assertEquals(45.0, result.getTotal(), 0.001);
+        assertEquals(45.0, result.getItemTotal(), 0.001);
+        assertEquals(10.0, result.getDeliveryCost(), 0.001);
+        assertEquals(55.0, result.getTotal(), 0.001);
     }
 
-	@Test
-void notifiesObserverWhenCreatedOrderIsCancelled() {
-    Restaurant restaurant = new Restaurant("Pizza House", true, 20,
-            Set.of("Nablus", "Tubas", "Tamoon"));
+    @Test
+    void calculatesFreeDeliveryCorrectly() {
 
-    MenuItem menu = new MenuItem("Pizza", 15, true);
-    OrderItem item = new OrderItem(menu, 3);
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 20,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
 
-    Address address = new Address("Nablus", "Taluza", "main street",
-            "in front of yellow house");
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
 
-    OrderObserver observer = mock(OrderObserver.class);
-    OrderService service = new OrderService(observer);
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
 
-    Order order = service.placeOrder(restaurant, List.of(item), address);
+        OrderService service = new OrderService(
+                mock(OrderObserver.class),
+                new DeliveryCostCalculator(0)
+        );
 
-    service.cancelOrder(order);
+        Order result = service.placeOrder(
+                restaurant, List.of(item), address, 5
+        );
 
-    verify(observer).onOrderStatusChanged(order, OrderStatus.CANCELLED);
-}
-
-
+        assertEquals(0.0, result.getDeliveryCost(), 0.001);
+        assertEquals(30.0, result.getTotal(), 0.001);
+    }
 
     @Test
-    void rejectsUncoveredDilveryArea() {
-        Restaurant restaurant = new Restaurant("Pizza House", true, 20,
-                Set.of("Tubas", "Tamoon"));
+    void rejectsUncoveredDeliveryArea() {
+
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 20,
+                Set.of("Tubas", "Tamoon")
+        );
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Address address = new Address("Nablus", "Taluza", "main street",
-                "in front of yellow house");
+
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
+
         OrderService service = createService();
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.placeOrder(restaurant, List.of(item), address));
+                () -> service.placeOrder(
+                        restaurant, List.of(item), address, 5
+                ));
     }
 
     @Test
     void rejectsOrderBelowMinimumValue() {
-        Restaurant restaurant = new Restaurant("Pizza House", true, 20,
-                Set.of("Nablus", "Tubas", "Tamoon"));
+
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 20,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 1);
-        Address address = new Address("Nablus", "Taluza", "main street",
-                "in front of yellow house");
+
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
+
         OrderService service = createService();
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.placeOrder(restaurant, List.of(item), address));
+                () -> service.placeOrder(
+                        restaurant, List.of(item), address, 5
+                ));
     }
 
     @Test
-    void cancelsPendingOrder() {
+    void deliveryCostIsNotIncludedInMinimumOrderValue() {
+
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 40,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
+
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
+
+        OrderService service = createService();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeOrder(
+                        restaurant, List.of(item), address, 10
+                ));
+    }
+
+    @Test
+    void rejectsNullRestaurant() {
+
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
+
+        OrderService service = createService();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeOrder(
+                        null, List.of(), address, 5
+                ));
+    }
+
+    @Test
+    void rejectsNullAddress() {
+
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 20,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Order order = new Order(List.of(item));
+
+        OrderService service = createService();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeOrder(
+                        restaurant, List.of(item), null, 5
+                ));
+    }
+
+    @Test
+    void rejectsInvalidDeliveryDistance() {
+
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 20,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 3);
+
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
+
+        OrderService service = createService();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeOrder(
+                        restaurant, List.of(item), address, 0
+                ));
+    }
+
+    @Test
+    void rejectsNegativeDeliveryDistance() {
+
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 20,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 3);
+
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
+
+        OrderService service = createService();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeOrder(
+                        restaurant, List.of(item), address, -5
+                ));
+    }
+
+    @Test
+    void rejectsNullOrderObserver() {
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new OrderService(
+                        null, new DeliveryCostCalculator(2)
+                ));
+    }
+
+    @Test
+    void rejectsNullDeliveryCostCalculator() {
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new OrderService(
+                        mock(OrderObserver.class), null
+                ));
+    }
+
+    // =========================
+    // Observer Tests
+    // =========================
+
+    @Test
+    void notifiesObserverWhenCreatedOrderIsCancelled() {
+
+        Restaurant restaurant = new Restaurant(
+                "Pizza House", true, 20,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 3);
+
+        Address address = new Address(
+                "Nablus", "Taluza", "main street",
+                "in front of yellow house"
+        );
+
+        OrderObserver observer = mock(OrderObserver.class);
+
+        OrderService service = new OrderService(
+                observer, new DeliveryCostCalculator(2)
+        );
+
+        Order order = service.placeOrder(
+                restaurant, List.of(item), address, 5
+        );
+
+        service.cancelOrder(order);
+
+        verify(observer).onOrderStatusChanged(
+                order, OrderStatus.CANCELLED
+        );
+    }
+
+    // =========================
+    // Order Cancellation Tests
+    // =========================
+
+    @Test
+    void cancelsPendingOrder() {
+
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 3);
+
+        Order order = new Order(List.of(item), 0);
+
         OrderService service = createService();
 
         service.cancelOrder(order);
@@ -101,9 +315,12 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsCancellingOrderInPreparingStatus() {
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Order order = new Order(List.of(item));
+
+        Order order = new Order(List.of(item), 0);
+
         OrderService service = createService();
 
         order.confirm();
@@ -117,6 +334,7 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsCancellingNullOrder() {
+
         OrderService service = createService();
 
         assertThrows(IllegalArgumentException.class,
@@ -125,9 +343,12 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsCancellingAlreadyCancelledOrder() {
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Order order = new Order(List.of(item));
+
+        Order order = new Order(List.of(item), 0);
+
         OrderService service = createService();
 
         service.cancelOrder(order);
@@ -136,14 +357,22 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
                 () -> service.cancelOrder(order));
     }
 
+    // =========================
     // US3.1 - Driver Assignment
+    // =========================
 
     @Test
     void assignsAvailableDriverToOrder() {
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Order order = new Order(List.of(item));
-        Driver driver = new Driver("D1", "Ahmad", 32.22, 35.25, 20);
+
+        Order order = new Order(List.of(item), 0);
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
+
         OrderService service = createService();
 
         service.assignDriver(order, driver);
@@ -153,10 +382,16 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void changesDriverStatusToBusy() {
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Order order = new Order(List.of(item));
-        Driver driver = new Driver("D1", "Ahmad", 32.22, 35.25, 20);
+
+        Order order = new Order(List.of(item), 0);
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
+
         OrderService service = createService();
 
         service.assignDriver(order, driver);
@@ -166,7 +401,11 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsAssigningNullOrder() {
-        Driver driver = new Driver("D1", "Ahmad", 32.22, 35.25, 20);
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
+
         OrderService service = createService();
 
         assertThrows(IllegalArgumentException.class,
@@ -177,9 +416,12 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsAssigningNullDriver() {
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Order order = new Order(List.of(item));
+
+        Order order = new Order(List.of(item), 0);
+
         OrderService service = createService();
 
         assertThrows(IllegalArgumentException.class,
@@ -190,10 +432,16 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsAssigningBusyDriver() {
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Order order = new Order(List.of(item));
-        Driver driver = new Driver("D1", "Ahmad", 32.22, 35.25, 20);
+
+        Order order = new Order(List.of(item), 0);
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
+
         OrderService service = createService();
 
         driver.setStatus(DriverStatus.BUSY);
@@ -207,11 +455,20 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsAssigningSecondDriverToOrder() {
+
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 3);
-        Order order = new Order(List.of(item));
-        Driver firstDriver = new Driver("D1", "Ahmad", 32.22, 35.25, 20);
-        Driver secondDriver = new Driver("D2", "Omar", 32.23, 35.26, 25);
+
+        Order order = new Order(List.of(item), 0);
+
+        Driver firstDriver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
+
+        Driver secondDriver = new Driver(
+                "D2", "Omar", 32.23, 35.26, 25
+        );
+
         OrderService service = createService();
 
         service.assignDriver(order, firstDriver);
@@ -223,21 +480,27 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
         assertEquals(DriverStatus.AVAILABLE, secondDriver.getStatus());
     }
 
+    // =========================
     // US3.2 - Strategy-Based Driver Selection
+    // =========================
 
     @Test
     void assignsNearestAvailableDriver() {
+
         Order order = new Order(List.of(
                 new OrderItem(new MenuItem("Pizza", 15, true), 2)
-        ));
+        ), 0);
 
-        Driver nearestDriver = new Driver("D1", "Ahmad",
-                32.22, 35.25, 20);
+        Driver nearestDriver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
 
-        Driver farthestDriver = new Driver("D2", "Omar",
-                32.30, 35.35, 15);
+        Driver farthestDriver = new Driver(
+                "D2", "Omar", 32.30, 35.35, 15
+        );
 
         List<Driver> drivers = List.of(farthestDriver, nearestDriver);
+
         OrderService service = createService();
 
         Driver result = service.assignDriverUsingStrategy(
@@ -253,17 +516,21 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void assignsFastestAvailableDriver() {
+
         Order order = new Order(List.of(
                 new OrderItem(new MenuItem("Pizza", 15, true), 2)
-        ));
+        ), 0);
 
-        Driver slowerDriver = new Driver("D1", "Ahmad",
-                32.22, 35.25, 30);
+        Driver slowerDriver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 30
+        );
 
-        Driver fasterDriver = new Driver("D2", "Omar",
-                32.30, 35.35, 10);
+        Driver fasterDriver = new Driver(
+                "D2", "Omar", 32.30, 35.35, 10
+        );
 
         List<Driver> drivers = List.of(slowerDriver, fasterDriver);
+
         OrderService service = createService();
 
         Driver result = service.assignDriverUsingStrategy(
@@ -279,19 +546,23 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void ignoresBusyDriversWhenSelectingDriver() {
+
         Order order = new Order(List.of(
                 new OrderItem(new MenuItem("Pizza", 15, true), 2)
-        ));
+        ), 0);
 
-        Driver busyDriver = new Driver("D1", "Ahmad",
-                32.22, 35.25, 5);
+        Driver busyDriver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 5
+        );
 
-        Driver availableDriver = new Driver("D2", "Omar",
-                32.30, 35.35, 20);
+        Driver availableDriver = new Driver(
+                "D2", "Omar", 32.30, 35.35, 20
+        );
 
         busyDriver.setStatus(DriverStatus.BUSY);
 
         List<Driver> drivers = List.of(busyDriver, availableDriver);
+
         OrderService service = createService();
 
         Driver result = service.assignDriverUsingStrategy(
@@ -307,12 +578,14 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsAssignmentWhenNoDriverIsAvailable() {
+
         Order order = new Order(List.of(
                 new OrderItem(new MenuItem("Pizza", 15, true), 2)
-        ));
+        ), 0);
 
-        Driver driver = new Driver("D1", "Ahmad",
-                32.22, 35.25, 20);
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
 
         driver.setStatus(DriverStatus.BUSY);
 
@@ -333,9 +606,10 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsNullDriversList() {
+
         Order order = new Order(List.of(
                 new OrderItem(new MenuItem("Pizza", 15, true), 2)
-        ));
+        ), 0);
 
         OrderService service = createService();
 
@@ -350,12 +624,14 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
 
     @Test
     void rejectsNullDriverSelectionStrategy() {
+
         Order order = new Order(List.of(
                 new OrderItem(new MenuItem("Pizza", 15, true), 2)
-        ));
+        ), 0);
 
-        Driver driver = new Driver("D1", "Ahmad",
-                32.22, 35.25, 20);
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
 
         OrderService service = createService();
 
@@ -368,4 +644,3 @@ void notifiesObserverWhenCreatedOrderIsCancelled() {
         assertEquals(DriverStatus.AVAILABLE, driver.getStatus());
     }
 }
-

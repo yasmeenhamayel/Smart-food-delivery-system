@@ -2,6 +2,7 @@
 package com.smartdelivery.domain;
 
 import com.smartdelivery.observer.OrderObserver;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -15,8 +16,12 @@ class OrderTest {
     private Order createOrder() {
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 2);
-        return new Order(List.of(item));
+        return new Order(List.of(item), 0);
     }
+
+    // =========================
+    // Order Creation Tests
+    // =========================
 
     @Test
     void createsOrderWithValidItems() {
@@ -29,13 +34,13 @@ class OrderTest {
     @Test
     void rejectsOrderWithNullItems() {
         assertThrows(IllegalArgumentException.class,
-                () -> new Order(null));
+                () -> new Order(null, 0));
     }
 
     @Test
     void rejectsOrderWithEmptyItems() {
         assertThrows(IllegalArgumentException.class,
-                () -> new Order(new ArrayList<>()));
+                () -> new Order(new ArrayList<>(), 0));
     }
 
     @Test
@@ -44,15 +49,70 @@ class OrderTest {
         items.add(null);
 
         assertThrows(IllegalArgumentException.class,
-                () -> new Order(items));
+                () -> new Order(items, 0));
+    }
+
+    // =========================
+    // US4.1 and US4.2: Order Total
+    // =========================
+
+    @Test
+    void calculatesItemTotalCorrectly() {
+        Order order = createOrder();
+
+        assertEquals(30.0, order.getItemTotal());
     }
 
     @Test
-    void calculatesOrderTotal() {
+    void calculatesOrderTotalIncludingDeliveryCost() {
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
+
+        Order order = new Order(List.of(item), 10);
+
+        assertEquals(30.0, order.getItemTotal());
+        assertEquals(10.0, order.getDeliveryCost());
+        assertEquals(40.0, order.getTotal());
+    }
+
+    @Test
+    void calculatesOrderTotalWithFreeDelivery() {
         Order order = createOrder();
 
         assertEquals(30.0, order.getTotal());
+        assertEquals(0.0, order.getDeliveryCost());
     }
+
+    @Test
+    void rejectsNegativeDeliveryCost() {
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new Order(List.of(item), -5));
+    }
+
+    @Test
+    void rejectsInfiniteDeliveryCost() {
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new Order(List.of(item), Double.POSITIVE_INFINITY));
+    }
+
+    @Test
+    void rejectsNaNDeliveryCost() {
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new Order(List.of(item), Double.NaN));
+    }
+
+    // =========================
+    // US4.1: Order Lifecycle
+    // =========================
 
     @Test
     void cancelsPendingOrder() {
@@ -93,8 +153,8 @@ class OrderTest {
     @Test
     void startsPreparingConfirmedOrder() {
         Order order = createOrder();
-        order.confirm();
 
+        order.confirm();
         order.startPreparing();
 
         assertEquals(OrderStatus.PREPARING, order.getStatus());
@@ -109,6 +169,70 @@ class OrderTest {
     }
 
     @Test
+    void marksPreparingOrderAsReady() {
+        Order order = createOrder();
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+
+        assertEquals(OrderStatus.READY, order.getStatus());
+    }
+
+    @Test
+    void rejectsMarkingOrderReadyBeforePreparing() {
+        Order order = createOrder();
+
+        assertThrows(IllegalStateException.class,
+                order::markReady);
+    }
+
+    @Test
+    void marksReadyOrderAsOutForDelivery() {
+        Order order = createOrder();
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.markOutForDelivery();
+
+        assertEquals(OrderStatus.OUT_FOR_DELIVERY, order.getStatus());
+    }
+
+    @Test
+    void rejectsMarkingOrderOutForDeliveryBeforeReady() {
+        Order order = createOrder();
+
+        assertThrows(IllegalStateException.class,
+                order::markOutForDelivery);
+    }
+
+    @Test
+    void marksOutForDeliveryOrderAsDelivered() {
+        Order order = createOrder();
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.markOutForDelivery();
+        order.markDelivered();
+
+        assertEquals(OrderStatus.DELIVERED, order.getStatus());
+    }
+
+    @Test
+    void rejectsMarkingOrderDeliveredBeforeOutForDelivery() {
+        Order order = createOrder();
+
+        assertThrows(IllegalStateException.class,
+                order::markDelivered);
+    }
+
+    // =========================
+    // Driver Tests
+    // =========================
+
+    @Test
     void rejectsNullDriver() {
         Order order = createOrder();
 
@@ -119,6 +243,7 @@ class OrderTest {
     @Test
     void assignsAvailableDriver() {
         Order order = createOrder();
+
         Driver driver = new Driver(
                 "D1", "Ahmad", 32.2211, 35.2544, 15
         );
@@ -126,14 +251,17 @@ class OrderTest {
         order.assignDriver(driver);
 
         assertEquals(driver, order.getDriver());
+        assertEquals(DriverStatus.BUSY, driver.getStatus());
     }
 
     @Test
     void rejectsAssigningBusyDriver() {
         Order order = createOrder();
+
         Driver driver = new Driver(
                 "D1", "Ahmad", 32.2211, 35.2544, 15
         );
+
         driver.setStatus(DriverStatus.BUSY);
 
         assertThrows(IllegalStateException.class,
@@ -143,9 +271,11 @@ class OrderTest {
     @Test
     void rejectsAssigningSecondDriver() {
         Order order = createOrder();
+
         Driver firstDriver = new Driver(
                 "D1", "Ahmad", 32.2211, 35.2544, 15
         );
+
         Driver secondDriver = new Driver(
                 "D2", "Ali", 32.2220, 35.2550, 20
         );
@@ -156,14 +286,16 @@ class OrderTest {
                 () -> order.assignDriver(secondDriver));
     }
 
-    // US3.3: Observer notification tests
+    // =========================
+    // Observer Tests
+    // =========================
 
     @Test
     void notifiesObserverWhenOrderIsConfirmed() {
         Order order = createOrder();
         OrderObserver observer = mock(OrderObserver.class);
-        order.addObserver(observer);
 
+        order.addObserver(observer);
         order.confirm();
 
         verify(observer).onOrderStatusChanged(
@@ -175,8 +307,8 @@ class OrderTest {
     void notifiesObserverWhenOrderIsCancelled() {
         Order order = createOrder();
         OrderObserver observer = mock(OrderObserver.class);
-        order.addObserver(observer);
 
+        order.addObserver(observer);
         order.cancel();
 
         verify(observer).onOrderStatusChanged(
@@ -188,6 +320,7 @@ class OrderTest {
     void doesNotNotifyObserverWhenStatusChangeFails() {
         Order order = createOrder();
         OrderObserver observer = mock(OrderObserver.class);
+
         order.addObserver(observer);
 
         assertThrows(IllegalStateException.class,
@@ -197,17 +330,53 @@ class OrderTest {
                 any(), any()
         );
     }
-	@Test
-void notifiesObserverWhenDriverIsAssigned() {
-    Order order = createOrder();
-    OrderObserver observer = mock(OrderObserver.class);
-    Driver driver = new Driver(
-            "D1", "Ahmad", 32.2211, 35.2544, 15
-    );
 
-    order.addObserver(observer);
-    order.assignDriver(driver);
+    @Test
+    void notifiesObserverWhenDriverIsAssigned() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
 
-    verify(observer).onDriverAssigned(order, driver);
-}
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.2211, 35.2544, 15
+        );
+
+        order.addObserver(observer);
+        order.assignDriver(driver);
+
+        verify(observer).onDriverAssigned(order, driver);
+    }
+
+    @Test
+    void notifiesObserverWhenOrderBecomesReady() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        order.addObserver(observer);
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+
+        verify(observer).onOrderStatusChanged(
+                order, OrderStatus.READY
+        );
+    }
+
+    @Test
+    void notifiesObserverWhenOrderIsDelivered() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        order.addObserver(observer);
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.markOutForDelivery();
+        order.markDelivered();
+
+        verify(observer).onOrderStatusChanged(
+                order, OrderStatus.DELIVERED
+        );
+    }
 }

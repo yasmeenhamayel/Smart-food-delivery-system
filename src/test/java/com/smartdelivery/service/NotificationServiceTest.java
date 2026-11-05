@@ -16,7 +16,7 @@ class NotificationServiceTest {
     private Order createOrder() {
         MenuItem menu = new MenuItem("Pizza", 15, true);
         OrderItem item = new OrderItem(menu, 2);
-        return new Order(List.of(item));
+        return new Order(List.of(item) , 0);
     }
 
     @Test
