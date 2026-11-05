@@ -1,12 +1,18 @@
+
 package com.smartdelivery.domain;
+
+import com.smartdelivery.observer.OrderObserver;
 
 import java.util.List;
 import java.util.ArrayList;
 
 public class Order {
+
     private List<OrderItem> items;
     private OrderStatus status;
     private double deliveryCost;
+    private Driver driver;
+    private List<OrderObserver> observers = new ArrayList<>();
 
 
     public Order(List<OrderItem> items, double deliveryCost) {
@@ -31,6 +37,7 @@ public class Order {
         this.items = new ArrayList<>(items);
         this.deliveryCost = deliveryCost;
         this.status = OrderStatus.PENDING;
+        this.driver = null;
     }
     
     
@@ -58,12 +65,36 @@ public class Order {
     }
     
     
+
+    public void addObserver(OrderObserver observer) {
+        if (observer == null) {
+            throw new IllegalArgumentException("Observer cannot be null");
+        }
+
+        if (!observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+
+    private void notifyObservers() {
+        for (OrderObserver observer : observers) {
+            observer.onOrderStatusChanged(this, status);
+        }
+    }
+
+    private void notifyDriverAssigned() {
+        for (OrderObserver observer : observers) {
+            observer.onDriverAssigned(this, driver);
+        }
+    }
+
     public void cancel() {
         if (status != OrderStatus.PENDING) {
             throw new IllegalStateException("Only pending orders can be cancelled");
         }
 
         status = OrderStatus.CANCELLED;
+        notifyObservers();
     }
 
     public void confirm() {
@@ -72,6 +103,7 @@ public class Order {
         }
 
         status = OrderStatus.CONFIRMED;
+        notifyObservers();
     }
 
     public void startPreparing() {
@@ -80,6 +112,29 @@ public class Order {
         }
 
         status = OrderStatus.PREPARING;
+        notifyObservers();
+    }
+
+    public void assignDriver(Driver driver) {
+        if (driver == null) {
+            throw new IllegalArgumentException("Driver cannot be null");
+        }
+
+        if (this.driver != null) {
+            throw new IllegalStateException("Order already has a driver");
+        }
+
+        if (driver.getStatus() != DriverStatus.AVAILABLE) {
+            throw new IllegalStateException("Driver is not available");
+        }
+
+        this.driver = driver;
+        driver.setStatus(DriverStatus.BUSY);
+        notifyDriverAssigned();
+    }
+
+    public Driver getDriver() {
+        return driver;
     }
     
     public void markReady() {

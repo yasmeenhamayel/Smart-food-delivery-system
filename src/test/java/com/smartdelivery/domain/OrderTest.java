@@ -1,278 +1,394 @@
-package com.smartdelivery.domain;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
-import java.util.List;
-import java.util.ArrayList;
 
+package com.smartdelivery.domain;
+
+import com.smartdelivery.observer.OrderObserver;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 public class OrderTest {
-	
-	@Test
-	void initializesOrderWithPendingStatus() {
-		MenuItem item1 = new MenuItem("Faheta", 8 , true);
-		OrderItem orderitem1 = new OrderItem(item1 , 5);
 
-		MenuItem item2 = new MenuItem("Burger", 10 , true);
-		OrderItem orderitem2 = new OrderItem(item2 ,2 );
-		
-        MenuItem item3 = new MenuItem("Pizza", 12.5, true );
-        OrderItem orderitem3 = new OrderItem(item3 , 1);
-        
-        List<OrderItem>name = new ArrayList<>();
-        name.add(orderitem1);
-        name.add(orderitem2);
-        name.add(orderitem3);
-        
-        Order order = new Order(name , 0);
-        
-        assertEquals(OrderStatus.PENDING , order.getStatus());
-	}
-	
-	
-	@Test
-	void TotalIsCalculatedCorrectly() {
-		MenuItem item1 = new MenuItem("Faheta", 8 , true);
-		OrderItem orderitem1 = new OrderItem(item1 , 5);
+    private Order createOrder() {
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
+        return new Order(List.of(item), 0);
+    }
 
-		MenuItem item2 = new MenuItem("Burger", 10 , true);
-		OrderItem orderitem2 = new OrderItem(item2 ,2 );
-		
+    // Order creation and validation
+
+    @Test
+    void initializesOrderWithPendingStatus() {
+        MenuItem item1 = new MenuItem("Faheta", 8, true);
+        OrderItem orderitem1 = new OrderItem(item1, 5);
+
+        MenuItem item2 = new MenuItem("Burger", 10, true);
+        OrderItem orderitem2 = new OrderItem(item2, 2);
+
         MenuItem item3 = new MenuItem("Pizza", 12.5, true);
-        OrderItem orderitem3 = new OrderItem(item3 , 1);
-        
-        List<OrderItem>name = new ArrayList<>();
-        name.add(orderitem1);
-        name.add(orderitem2);
-        name.add(orderitem3);
-        
-        Order order = new Order(name , 3);
-        
-        assertEquals(75.5 , order.getTotal(), 0.001);
-	}
-	
-	
-	@Test
-	void RejectsNullOrder(){
-        List<OrderItem>name = null;
+        OrderItem orderitem3 = new OrderItem(item3, 1);
 
-		assertThrows( IllegalArgumentException.class, ()->new Order(name , 0));
-	}
-	
-	
-	@Test
-	void RejectsEmptyOrder() {
-		List<OrderItem>name = new ArrayList<>();
-		
-		assertThrows( IllegalArgumentException.class, ()->new Order(name , 0));
+        List<OrderItem> items = new ArrayList<>();
+        items.add(orderitem1);
+        items.add(orderitem2);
+        items.add(orderitem3);
 
-	}
+        Order order = new Order(items, 0);
 
-	
-	@Test
-	void changesPendingOrderToConfirmed() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+        assertEquals(OrderStatus.PENDING, order.getStatus());
+    }
 
-	    order.confirm();
+    @Test
+    void calculatesTotalCorrectly() {
+        MenuItem item1 = new MenuItem("Faheta", 8, true);
+        OrderItem orderitem1 = new OrderItem(item1, 5);
 
-	    assertEquals(OrderStatus.CONFIRMED, order.getStatus());
-	}
-	
-	
-	@Test
-	void rejectsConfirmingNonPendingOrder() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+        MenuItem item2 = new MenuItem("Burger", 10, true);
+        OrderItem orderitem2 = new OrderItem(item2, 2);
 
-	    order.confirm();
+        MenuItem item3 = new MenuItem("Pizza", 12.5, true);
+        OrderItem orderitem3 = new OrderItem(item3, 1);
 
-	    assertThrows(IllegalStateException.class, () -> order.confirm());
-	}
-	
-	
-	@Test
-	void changesConfirmedOrderToPreparing() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+        List<OrderItem> items = new ArrayList<>();
+        items.add(orderitem1);
+        items.add(orderitem2);
+        items.add(orderitem3);
 
-	    order.confirm();
-	    order.startPreparing();
+        Order order = new Order(items, 3);
 
-	    assertEquals(OrderStatus.PREPARING, order.getStatus());
-	}
-	
-	
-	@Test
-	void rejectsStartingPreparationBeforeConfirmation() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+        assertEquals(75.5, order.getTotal(), 0.001);
+    }
 
-	    assertThrows(IllegalStateException.class, () -> order.startPreparing());
-	}
-	
-	
-	@Test
-	void cancelsPendingOrder() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+    @Test
+    void rejectsOrderWithNullItems() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Order(null, 0)
+        );
+    }
 
-	    order.cancel();
+    @Test
+    void rejectsOrderWithEmptyItems() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Order(new ArrayList<>(), 0)
+        );
+    }
 
-	    assertEquals(OrderStatus.CANCELLED, order.getStatus());
-	}
-	
-	
-	@Test
-	void rejectsCancellingNonPendingOrder() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+    @Test
+    void rejectsOrderWithNullItem() {
+        List<OrderItem> items = new ArrayList<>();
+        items.add(null);
 
-	    order.confirm();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Order(items, 0)
+        );
+    }
 
-	    assertThrows(IllegalStateException.class, () -> order.cancel());
+    // Order confirmation and preparation
 
-	    assertEquals(OrderStatus.CONFIRMED, order.getStatus());
-	}
-	
+    @Test
+    void confirmsPendingOrder() {
+        Order order = createOrder();
 
+        order.confirm();
 
- 	//YASMEEN
-     @Test
-     void rejectsOrderWithNullItem() {
-     List<OrderItem> items = new ArrayList<>();
-     items.add(null);
+        assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+    }
 
-    assertThrows(
-            IllegalArgumentException.class,
-            () -> new Order(items ,0 )
-      );
-   }
+    @Test
+    void rejectsConfirmingNonPendingOrder() {
+        Order order = createOrder();
+        order.confirm();
 
-	
-	
-	@Test
-	void changesPreparingOrderToReady() {
-		MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) ,0 );
+        assertThrows(
+                IllegalStateException.class,
+                order::confirm
+        );
+    }
 
-	    order.confirm();
-	    order.startPreparing();
-	    order.markReady();
+    @Test
+    void startsPreparingConfirmedOrder() {
+        Order order = createOrder();
+        order.confirm();
 
-	    assertEquals(OrderStatus.READY, order.getStatus());
-	}
-	
-	
-	@Test
-	void changesReadyOrderToOutForDelivery() {
-		MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+        order.startPreparing();
 
-	    order.confirm();
-	    order.startPreparing();
-	    order.markReady();
-	    order.markOutForDelivery();
+        assertEquals(OrderStatus.PREPARING, order.getStatus());
+    }
 
-	    assertEquals(OrderStatus.OUT_FOR_DELIVERY, order.getStatus());
-	}
-	
-	@Test
-	void changesOutForDeliveryOrderToDelivered() {
-		MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+    @Test
+    void rejectsPreparingOrderThatIsNotConfirmed() {
+        Order order = createOrder();
 
-	    order.confirm();
-	    order.startPreparing();
-	    order.markReady();
-	    order.markOutForDelivery();
-	    order.markDelivered();
+        assertThrows(
+                IllegalStateException.class,
+                order::startPreparing
+        );
+    }
 
-	    assertEquals(OrderStatus.DELIVERED, order.getStatus());
-	}
-	
-	@Test
-	void rejectsMarkingOrderReadyBeforePreparing() {
-		MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+    // Order cancellation
 
-	    assertThrows(IllegalStateException.class, () -> order.markReady());
-	}
-	
-	@Test
-	void rejectsMarkingOrderDeliveredBeforeOutForDelivery() {
-		MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+    @Test
+    void cancelsPendingOrder() {
+        Order order = createOrder();
 
-	    order.confirm();
-	    order.startPreparing();
-	    order.markReady();
-	    
-	    assertThrows(IllegalStateException.class, () -> order.markDelivered());
-	}
-	
-	
-	@Test
-	void rejectsChangingStatusAfterDelivered() {
-		MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
-	    Order order = new Order(List.of(item) , 0);
+        order.cancel();
 
-	    order.confirm();
-	    order.startPreparing();
-	    order.markReady();
-	    order.markOutForDelivery();
-	    order.markDelivered();
-	    
-	    assertThrows(IllegalStateException.class, () -> order.confirm());
-	    assertThrows(IllegalStateException.class, () -> order.cancel());
-	    assertThrows(IllegalStateException.class, () -> order.markOutForDelivery());
-	    assertThrows(IllegalStateException.class, () -> order.markReady());
+        assertEquals(OrderStatus.CANCELLED, order.getStatus());
+    }
 
-	    assertEquals(OrderStatus.DELIVERED, order.getStatus());
-	}
-	
-	
-	@Test
-	void allowsZeroDeliveryCost() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 2);
+    @Test
+    void rejectsCancellingNonPendingOrder() {
+        Order order = createOrder();
+        order.confirm();
 
-	    Order order = new Order(List.of(item), 0);
+        assertThrows(
+                IllegalStateException.class,
+                order::cancel
+        );
 
-	    assertEquals(30, order.getTotal(), 0.001);
-	}
-	
-	
-	@Test
-	void rejectsNegativeDeliveryCost() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 2);
+        assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+    }
 
-	    assertThrows(IllegalArgumentException.class,
-	            () -> new Order(List.of(item), -5));
-	}
-	
-	
-	@Test
-	void returnsCorrectDeliveryCost() {
-	    MenuItem menu = new MenuItem("Pizza", 15, true);
-	    OrderItem item = new OrderItem(menu, 3);
+    // Driver assignment
 
-	    Order order = new Order(List.of(item), 10);
+    @Test
+    void rejectsNullDriver() {
+        Order order = createOrder();
 
-	    assertEquals(10.0, order.getDeliveryCost(), 0.001);
-	}
-	
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> order.assignDriver(null)
+        );
+    }
 
+    @Test
+    void assignsAvailableDriver() {
+        Order order = createOrder();
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.2211, 35.2544, 15
+        );
+
+        order.assignDriver(driver);
+
+        assertEquals(driver, order.getDriver());
+    }
+
+    @Test
+    void rejectsAssigningBusyDriver() {
+        Order order = createOrder();
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.2211, 35.2544, 15
+        );
+
+        driver.setStatus(DriverStatus.BUSY);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> order.assignDriver(driver)
+        );
+    }
+
+    @Test
+    void rejectsAssigningSecondDriver() {
+        Order order = createOrder();
+
+        Driver firstDriver = new Driver(
+                "D1", "Ahmad", 32.2211, 35.2544, 15
+        );
+
+        Driver secondDriver = new Driver(
+                "D2", "Ali", 32.2220, 35.2550, 20
+        );
+
+        order.assignDriver(firstDriver);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> order.assignDriver(secondDriver)
+        );
+    }
+
+    // Observer notification tests
+
+    @Test
+    void notifiesObserverWhenOrderIsConfirmed() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        order.addObserver(observer);
+        order.confirm();
+
+        verify(observer).onOrderStatusChanged(
+                order, OrderStatus.CONFIRMED
+        );
+    }
+
+    @Test
+    void notifiesObserverWhenOrderIsCancelled() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        order.addObserver(observer);
+        order.cancel();
+
+        verify(observer).onOrderStatusChanged(
+                order, OrderStatus.CANCELLED
+        );
+    }
+
+    @Test
+    void doesNotNotifyObserverWhenStatusChangeFails() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        order.addObserver(observer);
+
+        assertThrows(
+                IllegalStateException.class,
+                order::startPreparing
+        );
+
+        verify(observer, never()).onOrderStatusChanged(
+                any(), any()
+        );
+    }
+
+    @Test
+    void notifiesObserverWhenDriverIsAssigned() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.2211, 35.2544, 15
+        );
+
+        order.addObserver(observer);
+        order.assignDriver(driver);
+
+        verify(observer).onDriverAssigned(order, driver);
+    }
+
+    // Order lifecycle (US4.1)
+
+    @Test
+    void changesPreparingOrderToReady() {
+        Order order = createOrder();
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+
+        assertEquals(OrderStatus.READY, order.getStatus());
+    }
+
+    @Test
+    void changesReadyOrderToOutForDelivery() {
+        Order order = createOrder();
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.markOutForDelivery();
+
+        assertEquals(
+                OrderStatus.OUT_FOR_DELIVERY,
+                order.getStatus()
+        );
+    }
+
+    @Test
+    void changesOutForDeliveryOrderToDelivered() {
+        Order order = createOrder();
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.markOutForDelivery();
+        order.markDelivered();
+
+        assertEquals(OrderStatus.DELIVERED, order.getStatus());
+    }
+
+    @Test
+    void rejectsMarkingOrderReadyBeforePreparing() {
+        Order order = createOrder();
+
+        assertThrows(
+                IllegalStateException.class,
+                order::markReady
+        );
+    }
+
+    @Test
+    void rejectsMarkingOrderDeliveredBeforeOutForDelivery() {
+        Order order = createOrder();
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+
+        assertThrows(
+                IllegalStateException.class,
+                order::markDelivered
+        );
+    }
+
+    @Test
+    void rejectsChangingStatusAfterDelivered() {
+        Order order = createOrder();
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.markOutForDelivery();
+        order.markDelivered();
+
+        assertThrows(IllegalStateException.class, order::confirm);
+        assertThrows(IllegalStateException.class, order::cancel);
+        assertThrows(IllegalStateException.class, order::markOutForDelivery);
+        assertThrows(IllegalStateException.class, order::markReady);
+
+        assertEquals(OrderStatus.DELIVERED, order.getStatus());
+    }
+
+    // Delivery cost tests (US4.2)
+
+    @Test
+    void allowsZeroDeliveryCost() {
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
+
+        Order order = new Order(List.of(item), 0);
+
+        assertEquals(30, order.getTotal(), 0.001);
+    }
+
+    @Test
+    void rejectsNegativeDeliveryCost() {
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 2);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Order(List.of(item), -5)
+        );
+    }
+
+    @Test
+    void returnsCorrectDeliveryCost() {
+        MenuItem menu = new MenuItem("Pizza", 15, true);
+        OrderItem item = new OrderItem(menu, 3);
+
+        Order order = new Order(List.of(item), 10);
+
+        assertEquals(10.0, order.getDeliveryCost(), 0.001);
+    }
 }
