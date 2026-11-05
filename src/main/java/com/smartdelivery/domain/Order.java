@@ -6,14 +6,20 @@ import java.util.ArrayList;
 public class Order {
     private List<OrderItem> items;
     private OrderStatus status;
+    private double deliveryCost;
 
-    public Order(List<OrderItem> items) {
+
+    public Order(List<OrderItem> items, double deliveryCost) {
         if (items == null) {
             throw new IllegalArgumentException("Null Order");
         }
 
         if (items.isEmpty()) {
             throw new IllegalArgumentException("The Order is Empty");
+        }
+
+        if (deliveryCost < 0 || !Double.isFinite(deliveryCost)) {
+            throw new IllegalArgumentException("Invalid delivery cost");
         }
 
         for (OrderItem item : items) {
@@ -23,23 +29,35 @@ public class Order {
         }
 
         this.items = new ArrayList<>(items);
+        this.deliveryCost = deliveryCost;
         this.status = OrderStatus.PENDING;
+    }
+    
+    
+    public double getItemTotal() {
+    	 double total = 0;
+
+         for (OrderItem item : items) {
+             total += item.getSubtotal();
+         }
+
+         return total;
     }
 
     public double getTotal() {
-        double total = 0;
-
-        for (OrderItem item : items) {
-            total += item.getSubtotal();
-        }
-
-        return total;
+        return getItemTotal()+ deliveryCost;
     }
 
     public OrderStatus getStatus() {
         return status;
     }
-
+    
+    
+    public double getDeliveryCost() {
+        return deliveryCost;
+    }
+    
+    
     public void cancel() {
         if (status != OrderStatus.PENDING) {
             throw new IllegalStateException("Only pending orders can be cancelled");
@@ -63,4 +81,25 @@ public class Order {
 
         status = OrderStatus.PREPARING;
     }
+    
+    public void markReady() {
+		if(status !=OrderStatus.PREPARING) {
+			throw new IllegalStateException();
+		}
+		status = OrderStatus.READY;
+	}
+	
+	public void markOutForDelivery() {
+		if(status != OrderStatus.READY) {
+			throw new IllegalStateException();
+		}
+		status = OrderStatus.OUT_FOR_DELIVERY;
+	}
+	
+	public void markDelivered() {
+		if(status != OrderStatus.OUT_FOR_DELIVERY) {
+			throw new IllegalStateException();
+		}
+		status = OrderStatus.DELIVERED;
+	}
 }
