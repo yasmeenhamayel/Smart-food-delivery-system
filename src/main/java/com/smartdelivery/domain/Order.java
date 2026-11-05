@@ -2,7 +2,6 @@
 package com.smartdelivery.domain;
 
 import com.smartdelivery.observer.OrderObserver;
-
 import java.util.List;
 import java.util.ArrayList;
 
@@ -14,8 +13,8 @@ public class Order {
     private Driver driver;
     private List<OrderObserver> observers = new ArrayList<>();
 
-
     public Order(List<OrderItem> items, double deliveryCost) {
+
         if (items == null) {
             throw new IllegalArgumentException("Null Order");
         }
@@ -39,32 +38,28 @@ public class Order {
         this.status = OrderStatus.PENDING;
         this.driver = null;
     }
-    
-    
+
     public double getItemTotal() {
-    	 double total = 0;
+        double total = 0;
 
-         for (OrderItem item : items) {
-             total += item.getSubtotal();
-         }
+        for (OrderItem item : items) {
+            total += item.getSubtotal();
+        }
 
-         return total;
+        return total;
     }
 
     public double getTotal() {
-        return getItemTotal()+ deliveryCost;
+        return getItemTotal() + deliveryCost;
+    }
+
+    public double getDeliveryCost() {
+        return deliveryCost;
     }
 
     public OrderStatus getStatus() {
         return status;
     }
-    
-    
-    public double getDeliveryCost() {
-        return deliveryCost;
-    }
-    
-    
 
     public void addObserver(OrderObserver observer) {
         if (observer == null) {
@@ -115,6 +110,33 @@ public class Order {
         notifyObservers();
     }
 
+    public void markReady() {
+        if (status != OrderStatus.PREPARING) {
+            throw new IllegalStateException();
+        }
+
+        status = OrderStatus.READY;
+        notifyObservers();
+    }
+
+    public void markOutForDelivery() {
+        if (status != OrderStatus.READY) {
+            throw new IllegalStateException();
+        }
+
+        status = OrderStatus.OUT_FOR_DELIVERY;
+        notifyObservers();
+    }
+
+    public void markDelivered() {
+        if (status != OrderStatus.OUT_FOR_DELIVERY) {
+            throw new IllegalStateException();
+        }
+
+        status = OrderStatus.DELIVERED;
+        notifyObservers();
+    }
+
     public void assignDriver(Driver driver) {
         if (driver == null) {
             throw new IllegalArgumentException("Driver cannot be null");
@@ -136,25 +158,4 @@ public class Order {
     public Driver getDriver() {
         return driver;
     }
-    
-    public void markReady() {
-		if(status !=OrderStatus.PREPARING) {
-			throw new IllegalStateException();
-		}
-		status = OrderStatus.READY;
-	}
-	
-	public void markOutForDelivery() {
-		if(status != OrderStatus.READY) {
-			throw new IllegalStateException();
-		}
-		status = OrderStatus.OUT_FOR_DELIVERY;
-	}
-	
-	public void markDelivered() {
-		if(status != OrderStatus.OUT_FOR_DELIVERY) {
-			throw new IllegalStateException();
-		}
-		status = OrderStatus.DELIVERED;
-	}
 }
