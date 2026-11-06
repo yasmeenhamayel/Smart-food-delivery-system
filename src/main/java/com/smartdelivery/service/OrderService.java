@@ -4,21 +4,35 @@ package com.smartdelivery.service;
 import com.smartdelivery.domain.*;
 import com.smartdelivery.observer.OrderObserver;
 import com.smartdelivery.strategy.DriverSelectionStrategy;
-
 import java.util.List;
 
 public class OrderService {
 
     private final OrderObserver notificationObserver;
+    private final DeliveryCostCalculator deliveryCostCalculator;
 
-    public OrderService(OrderObserver notificationObserver) {
+    public OrderService(OrderObserver notificationObserver,
+                        DeliveryCostCalculator deliveryCostCalculator) {
+
         if (notificationObserver == null) {
             throw new IllegalArgumentException("Notification observer cannot be null");
         }
+
+        if (deliveryCostCalculator == null) {
+            throw new IllegalArgumentException("Delivery cost calculator cannot be null");
+        }
+
         this.notificationObserver = notificationObserver;
+        this.deliveryCostCalculator = deliveryCostCalculator;
     }
 
-    public Order placeOrder(Restaurant restaurant, List<OrderItem> items, Address address) {
+    // US4.1 and US4.2: Place an order and calculate delivery cost
+    public Order placeOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance) {
+
         if (restaurant == null) {
             throw new IllegalArgumentException("Null Restaurant");
         }
@@ -27,17 +41,20 @@ public class OrderService {
             throw new IllegalArgumentException("Null Address");
         }
 
-        Order order = new Order(items);
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        Order order = new Order(items, deliveryCost);
 
         if (!restaurant.getDeliveryAreas().contains(address.getCity())) {
             throw new IllegalArgumentException(
-                    "The Order Rejected , Your area isn’t covered by the restaurant’s delivery areas"
+                    "The Order Rejected, Your area isn't covered by the restaurant's delivery areas"
             );
         }
 
-        if (order.getTotal() < restaurant.getMinOrderValue()) {
+        if (order.getItemTotal() < restaurant.getMinOrderValue()) {
             throw new IllegalArgumentException(
-                    "The Order Rejected , Your total order less than the minimum order value in this restaurant"
+                    "The Order Rejected, Your total order is less than the minimum order value"
             );
         }
 
@@ -47,6 +64,7 @@ public class OrderService {
     }
 
     public void cancelOrder(Order order) {
+
         if (order == null) {
             throw new IllegalArgumentException("Null Order");
         }
@@ -54,8 +72,9 @@ public class OrderService {
         order.cancel();
     }
 
-    // US3.1: Assign a specific driver to an order.
+    // US3.1: Assign a specific driver to an order
     public void assignDriver(Order order, Driver driver) {
+
         if (order == null) {
             throw new IllegalArgumentException("Null Order");
         }
@@ -67,7 +86,7 @@ public class OrderService {
         order.assignDriver(driver);
     }
 
-    // US3.2: Select a driver according to the given strategy.
+    // US3.2: Select a driver according to the given strategy
     public Driver assignDriverUsingStrategy(
             Order order,
             List<Driver> drivers,
@@ -102,4 +121,3 @@ public class OrderService {
         return selectedDriver;
     }
 }
-
