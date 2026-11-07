@@ -287,6 +287,32 @@ class OrderTest {
                 () -> order.assignDriver(secondDriver));
     }
 
+    @Test
+    void rejectsAssigningDriverToDeliveredOrder() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.2211, 35.2544, 15
+        );
+
+        order.addObserver(observer);
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.markOutForDelivery();
+        order.markDelivered();
+
+        assertThrows(IllegalStateException.class,
+                () -> order.assignDriver(driver));
+                assertEquals(OrderStatus.DELIVERED, order.getStatus());
+
+        assertNull(order.getDriver());
+        assertEquals(DriverStatus.AVAILABLE, driver.getStatus());
+        verify(observer, never()).onDriverAssigned(any(), any());
+    }
+
     // =========================
     // Observer Tests
     // =========================

@@ -142,6 +142,10 @@ public class Order {
             throw new IllegalArgumentException("Driver cannot be null");
         }
 
+        if (status == OrderStatus.DELIVERED) {
+            throw new IllegalStateException("Delivered orders cannot be modified");
+        }
+
         if (this.driver != null) {
             throw new IllegalStateException("Order already has a driver");
         }
