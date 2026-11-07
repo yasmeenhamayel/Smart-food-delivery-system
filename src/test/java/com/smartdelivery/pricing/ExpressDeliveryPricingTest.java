@@ -10,7 +10,7 @@ public class ExpressDeliveryPricingTest {
     void calculatesPriceWithExpressFee() {
         ExpressDeliveryPricing pricing = new ExpressDeliveryPricing(15);
 
-        double result = pricing.calculatePrice(110);
+        double result = pricing.calculateDeliveryCost(110);
 
         assertEquals(125, result, 0.001);
     }

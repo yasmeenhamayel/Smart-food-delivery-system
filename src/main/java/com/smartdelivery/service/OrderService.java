@@ -2,6 +2,7 @@ package com.smartdelivery.service;
 
 import com.smartdelivery.domain.*;
 import com.smartdelivery.observer.OrderObserver;
+import com.smartdelivery.pricing.PricingStrategy;
 import com.smartdelivery.strategy.DriverSelectionStrategy;
 
 import java.time.Clock;
@@ -268,5 +269,35 @@ public class OrderService {
         assignDriver(order, selectedDriver);
 
         return selectedDriver;
+    }
+
+    /**
+     * US4.3: Calculates the final price of an order using the given pricing
+     * strategy.
+     *
+     * <p>The strategy is applied to the food subtotal only, and the delivery
+     * cost is then added unchanged. The delivery cost of an express order
+     * already contains the Express surcharge, so the surcharge is counted
+     * exactly once. The order is not modified, and the result can differ from
+     * {@link Order#getTotal()}, which is not affected by pricing strategies.</p>
+     *
+     * @param order the order to price
+     * @param strategy the strategy applied to the food subtotal
+     * @return the priced food subtotal plus the delivery cost
+     */
+    public double calculateTotalWithPricing(
+            Order order,
+            PricingStrategy strategy) {
+
+        if (order == null) {
+            throw new IllegalArgumentException("Null Order");
+        }
+
+        if (strategy == null) {
+            throw new IllegalArgumentException("Null Pricing Strategy");
+        }
+
+        return strategy.calculatePrice(order.getItemTotal())
+                + order.getDeliveryCost();
     }
 }

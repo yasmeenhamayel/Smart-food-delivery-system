@@ -12,6 +12,6 @@ public class ExpressOrder extends Order {
 
         super(items,
                 new ExpressDeliveryPricing(expressFee)
-                        .calculatePrice(deliveryCost));
+                        .calculateDeliveryCost(deliveryCost));
     }
 }
