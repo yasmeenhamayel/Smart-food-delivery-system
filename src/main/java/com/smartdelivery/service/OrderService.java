@@ -171,7 +171,10 @@ public class OrderService {
         order.cancel();
     }
 
-    // US3.1: Assign a specific driver to an order
+    // US3.1: Assign a specific driver to an order. No distance is available,
+    // so the order only accepts drivers that can be verified without one
+    // (see Order#assignDriver(Driver)); distance-limited vehicles must use
+    // assignDriver(order, driver, distance).
     public void assignDriver(Order order, Driver driver) {
 
         if (order == null) {
@@ -183,6 +186,36 @@ public class OrderService {
         }
 
         order.assignDriver(driver);
+    }
+
+    /**
+     * US5.4: Assigns a specific driver to an order only if the driver's
+     * vehicle type can handle the delivery of the given distance.
+     *
+     * <p>This is the assignment method to use for bicycle, motorcycle and
+     * electric vehicle drivers, whose rules depend on the distance. The
+     * eligibility check itself is enforced by the order, so it cannot be
+     * skipped through any other assignment method.</p>
+     *
+     * @param order the order to deliver
+     * @param driver the driver to assign
+     * @param distance the delivery distance in kilometres
+     * @throws IllegalArgumentException if an argument is null or the distance
+     *         is not positive and finite
+     * @throws IllegalStateException if the driver's vehicle cannot handle the
+     *         delivery, or the driver cannot be assigned
+     */
+    public void assignDriver(Order order, Driver driver, double distance) {
+
+        if (order == null) {
+            throw new IllegalArgumentException("Null Order");
+        }
+
+        if (driver == null) {
+            throw new IllegalArgumentException("Null Driver");
+        }
+
+        order.assignDriver(driver, distance);
     }
 
     // US3.2: Original method - kept for backward compatibility
@@ -205,8 +238,19 @@ public class OrderService {
             throw new IllegalArgumentException("Null Driver Selection Strategy");
         }
 
+        // Without a distance, only drivers verifiable from the order alone
+        // are eligible (plain drivers, and cars within their capacity)
+        List<Driver> eligibleDrivers = new ArrayList<>();
+
+        for (Driver driver : drivers) {
+            if (driver != null &&
+                    driver.canHandleOrderWithoutDistance(order)) {
+                eligibleDrivers.add(driver);
+            }
+        }
+
         Driver selectedDriver = strategy.selectDriver(
-                drivers,
+                eligibleDrivers,
                 restaurantLatitude,
                 restaurantLongitude
         );
@@ -266,7 +310,7 @@ public class OrderService {
             );
         }
 
-        assignDriver(order, selectedDriver);
+        assignDriver(order, selectedDriver, distance);
 
         return selectedDriver;
     }

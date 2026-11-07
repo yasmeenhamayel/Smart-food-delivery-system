@@ -5,6 +5,10 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * A scheduled order. It must be delivered at a time that is strictly after the
+ * moment the order is created.
+ */
 public class ScheduledOrder extends Order {
 
     private final LocalDateTime scheduledDeliveryTime;

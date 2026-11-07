@@ -236,4 +236,337 @@ public class OrderServiceOrderTypesTest {
                         5
                 ));
     }
+
+    // Additional Scheduled Order Tests
+
+    @Test
+    void acceptsScheduledOrderFarInTheFutureWithSystemClock() {
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        LocalDateTime deliveryTime = LocalDateTime.now().plusYears(1);
+
+        ScheduledOrder order = service.placeScheduledOrder(
+                restaurant,
+                List.of(item),
+                address,
+                5,
+                deliveryTime
+        );
+
+        assertEquals(deliveryTime, order.getScheduledDeliveryTime());
+        assertEquals(OrderStatus.PENDING, order.getStatus());
+    }
+
+    @Test
+    void rejectsScheduledOrderInThePastWithSystemClock() {
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        LocalDateTime deliveryTime = LocalDateTime.now().minusYears(1);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeScheduledOrder(
+                        restaurant,
+                        List.of(item),
+                        address,
+                        5,
+                        deliveryTime
+                ));
+    }
+
+    @Test
+    void rejectsScheduledOrderWithCurrentDeliveryTime() {
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-07T10:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeScheduledOrder(
+                        restaurant,
+                        List.of(item),
+                        address,
+                        5,
+                        LocalDateTime.of(2026, 11, 7, 10, 0),
+                        clock
+                ));
+    }
+
+    @Test
+    void rejectsScheduledOrderWithNullDeliveryTime() {
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-07T10:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeScheduledOrder(
+                        restaurant,
+                        List.of(item),
+                        address,
+                        5,
+                        null,
+                        clock
+                ));
+    }
+
+    @Test
+    void registersObserverForScheduledOrder() {
+
+        OrderObserver observer = mock(OrderObserver.class);
+        OrderService service = createService(observer);
+
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-07T10:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        ScheduledOrder order = service.placeScheduledOrder(
+                restaurant,
+                List.of(item),
+                address,
+                5,
+                LocalDateTime.of(2026, 11, 7, 11, 0),
+                clock
+        );
+
+        service.cancelOrder(order);
+
+        verify(observer).onOrderStatusChanged(
+                order,
+                OrderStatus.CANCELLED
+        );
+    }
+
+    @Test
+    void registersObserverForStandardOrder() {
+
+        OrderObserver observer = mock(OrderObserver.class);
+        OrderService service = createService(observer);
+
+        StandardOrder order = service.placeStandardOrder(
+                restaurant,
+                List.of(item),
+                address,
+                5
+        );
+
+        service.cancelOrder(order);
+
+        verify(observer).onOrderStatusChanged(
+                order,
+                OrderStatus.CANCELLED
+        );
+    }
+
+    @Test
+    void rejectsScheduledOrderForUncoveredArea() {
+
+        Restaurant restaurantWithoutNablus = new Restaurant(
+                "Pizza House",
+                true,
+                20,
+                Set.of("Tubas", "Tamoon")
+        );
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-07T10:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeScheduledOrder(
+                        restaurantWithoutNablus,
+                        List.of(item),
+                        address,
+                        5,
+                        LocalDateTime.of(2026, 11, 7, 11, 0),
+                        clock
+                ));
+    }
+
+    @Test
+    void rejectsScheduledOrderBelowMinimumValue() {
+
+        Restaurant restaurantWithHighMinimum = new Restaurant(
+                "Pizza House",
+                true,
+                50,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-07T10:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeScheduledOrder(
+                        restaurantWithHighMinimum,
+                        List.of(item),
+                        address,
+                        5,
+                        LocalDateTime.of(2026, 11, 7, 11, 0),
+                        clock
+                ));
+    }
+
+    @Test
+    void rejectsExpressOrderBelowMinimumValue() {
+
+        Restaurant restaurantWithHighMinimum = new Restaurant(
+                "Pizza House",
+                true,
+                50,
+                Set.of("Nablus", "Tubas", "Tamoon")
+        );
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeExpressOrder(
+                        restaurantWithHighMinimum,
+                        List.of(item),
+                        address,
+                        5,
+                        5
+                ));
+    }
+
+    @Test
+    void rejectsStandardOrderForUncoveredArea() {
+
+        Restaurant restaurantWithoutNablus = new Restaurant(
+                "Pizza House",
+                true,
+                20,
+                Set.of("Tubas", "Tamoon")
+        );
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeStandardOrder(
+                        restaurantWithoutNablus,
+                        List.of(item),
+                        address,
+                        5
+                ));
+    }
+
+    @Test
+    void rejectsNullRestaurantAndAddressForAllOrderTypes() {
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-07T10:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        LocalDateTime deliveryTime =
+                LocalDateTime.of(2026, 11, 7, 11, 0);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeStandardOrder(
+                        null, List.of(item), address, 5));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeStandardOrder(
+                        restaurant, List.of(item), null, 5));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeExpressOrder(
+                        null, List.of(item), address, 5, 5));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeExpressOrder(
+                        restaurant, List.of(item), null, 5, 5));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeScheduledOrder(
+                        null, List.of(item), address, 5,
+                        deliveryTime, clock));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeScheduledOrder(
+                        restaurant, List.of(item), null, 5,
+                        deliveryTime, clock));
+    }
+
+    @Test
+    void rejectsInvalidDistanceForAllOrderTypes() {
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-07T10:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        LocalDateTime deliveryTime =
+                LocalDateTime.of(2026, 11, 7, 11, 0);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeStandardOrder(
+                        restaurant, List.of(item), address, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeExpressOrder(
+                        restaurant, List.of(item), address, -1, 5));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.placeScheduledOrder(
+                        restaurant, List.of(item), address, 0,
+                        deliveryTime, clock));
+    }
+
+    @Test
+    void allOrderTypesFollowTheSameCostRulesForTheSameDistance() {
+
+        OrderService service = createService(
+                mock(OrderObserver.class)
+        );
+
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-11-07T10:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        Order standard = service.placeStandardOrder(
+                restaurant, List.of(item), address, 5);
+        Order express = service.placeExpressOrder(
+                restaurant, List.of(item), address, 5, 4);
+        Order scheduled = service.placeScheduledOrder(
+                restaurant, List.of(item), address, 5,
+                LocalDateTime.of(2026, 11, 7, 11, 0), clock);
+
+        assertEquals(10.0, standard.getDeliveryCost(), 0.001);
+        assertEquals(14.0, express.getDeliveryCost(), 0.001);
+        assertEquals(10.0, scheduled.getDeliveryCost(), 0.001);
+    }
 }

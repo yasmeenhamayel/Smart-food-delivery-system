@@ -1,5 +1,9 @@
 package com.smartdelivery.domain;
 
+/**
+ * An electric vehicle driver, who can only deliver distances that fit within
+ * the vehicle's remaining range.
+ */
 public class ElectricVehicleDriver extends Driver {
 
     private double remainingRange;
@@ -32,5 +36,16 @@ public class ElectricVehicleDriver extends Driver {
     @Override
     public boolean canHandleDelivery(Order order, double distance) {
         return order != null && canDeliver(distance);
+    }
+
+    /**
+     * A distance-limited driver cannot be verified without a distance.
+     *
+     * @param order the order to deliver
+     * @return always {@code false}
+     */
+    @Override
+    public boolean canHandleOrderWithoutDistance(Order order) {
+        return false;
     }
 }

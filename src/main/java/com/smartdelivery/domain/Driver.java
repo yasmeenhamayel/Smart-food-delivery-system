@@ -73,9 +73,38 @@ public class Driver {
     public String getName() {
         return name;
     }
+
+    /**
+     * Checks whether this driver can handle a delivery.
+     *
+     * <p>A plain driver has no vehicle restrictions, so it can handle any
+     * delivery. Vehicle-specific subclasses override this method to apply
+     * their own rules.</p>
+     *
+     * @param order the order to deliver
+     * @param distance the delivery distance in kilometres
+     * @return {@code true} if this driver can handle the delivery
+     */
     public boolean canHandleDelivery(Order order, double distance) {
-    return true;
-}
+        return true;
+    }
+
+    /**
+     * Checks whether this driver can be given an order when the delivery
+     * distance is not known.
+     *
+     * <p>A plain driver has no vehicle restrictions, so it is always
+     * eligible. Vehicle types whose rule depends on the distance override this
+     * method and return {@code false}, because their rule cannot be verified
+     * without a distance. Vehicle types whose rule depends only on the order
+     * apply that rule.</p>
+     *
+     * @param order the order to deliver
+     * @return {@code true} if eligibility can be confirmed from the order alone
+     */
+    public boolean canHandleOrderWithoutDistance(Order order) {
+        return true;
+    }
 
     /** @return the driver's current status */
     public DriverStatus getStatus() {

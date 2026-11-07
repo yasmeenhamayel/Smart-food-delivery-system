@@ -137,11 +137,68 @@ public class Order {
         notifyObservers();
     }
 
+    /**
+     * Assigns a driver when the delivery distance is not known.
+     *
+     * <p>Only drivers whose eligibility can be confirmed from the order alone
+     * are accepted: plain drivers, and car drivers whose capacity covers the
+     * order weight. Bicycle, motorcycle and electric vehicle drivers depend on
+     * the delivery distance, so they must be assigned with
+     * {@link #assignDriver(Driver, double)}.</p>
+     *
+     * @param driver the driver to assign
+     * @throws IllegalArgumentException if the driver is null
+     * @throws IllegalStateException if the order cannot be modified, already
+     *         has a driver, the driver is not available, or the driver is not
+     *         eligible without a distance
+     */
     public void assignDriver(Driver driver) {
         if (driver == null) {
             throw new IllegalArgumentException("Driver cannot be null");
         }
 
+        checkCanAssign(driver);
+
+        if (!driver.canHandleOrderWithoutDistance(this)) {
+            throw new IllegalStateException(
+                    "Driver is not eligible for this order without a delivery distance");
+        }
+
+        completeAssignment(driver);
+    }
+
+    /**
+     * Assigns a driver after checking that the driver's vehicle type can
+     * handle a delivery of the given distance.
+     *
+     * @param driver the driver to assign
+     * @param distance the delivery distance in kilometres
+     * @throws IllegalArgumentException if the driver is null or the distance
+     *         is not positive and finite
+     * @throws IllegalStateException if the order cannot be modified, already
+     *         has a driver, the driver is not available, or the driver's
+     *         vehicle cannot handle this delivery
+     */
+    public void assignDriver(Driver driver, double distance) {
+        if (driver == null) {
+            throw new IllegalArgumentException("Driver cannot be null");
+        }
+
+        if (distance <= 0 || !Double.isFinite(distance)) {
+            throw new IllegalArgumentException("Invalid delivery distance");
+        }
+
+        checkCanAssign(driver);
+
+        if (!driver.canHandleDelivery(this, distance)) {
+            throw new IllegalStateException("Driver cannot handle this delivery");
+        }
+
+        completeAssignment(driver);
+    }
+
+    // Checks the order and driver state shared by every assignment path
+    private void checkCanAssign(Driver driver) {
         if (status == OrderStatus.DELIVERED) {
             throw new IllegalStateException("Delivered orders cannot be modified");
         }
@@ -153,7 +210,10 @@ public class Order {
         if (driver.getStatus() != DriverStatus.AVAILABLE) {
             throw new IllegalStateException("Driver is not available");
         }
+    }
 
+    // Records the assignment, marks the driver busy and notifies observers
+    private void completeAssignment(Driver driver) {
         this.driver = driver;
         driver.setStatus(DriverStatus.BUSY);
         notifyDriverAssigned();

@@ -82,4 +82,44 @@ class CarDriverTest {
 
         return new Order(List.of(orderItem), 5.0);
     }
+
+    @Test
+    void acceptsOrderExactlyAtCapacityDespiteFloatingPointError() {
+        CarDriver driver = new CarDriver(
+                "C1", "Ahmad", 32.2, 35.2, 10, 2.4
+        );
+
+        MenuItem item = new MenuItem("Pizza", 12.5, true, 0.8);
+        Order order = new Order(List.of(new OrderItem(item, 3)), 5.0);
+
+        // 0.8 * 3 is 2.4000000000000004 in floating point
+        assertTrue(order.getTotalWeight() > 2.4);
+        assertTrue(driver.canHandle(order));
+        assertTrue(driver.canHandleDelivery(order, 5));
+    }
+
+    @Test
+    void rejectsOrderGenuinelyAboveCapacity() {
+        CarDriver driver = new CarDriver(
+                "C1", "Ahmad", 32.2, 35.2, 10, 2.4
+        );
+
+        MenuItem slightlyHeavier = new MenuItem("Pizza", 12.5, true, 0.8001);
+        Order order = new Order(
+                List.of(new OrderItem(slightlyHeavier, 3)), 5.0
+        );
+
+        assertFalse(driver.canHandle(order));
+        assertFalse(driver.canHandleDelivery(order, 5));
+    }
+
+    @Test
+    void rejectsOrderJustAboveCapacityByAMeaningfulMargin() {
+        CarDriver driver = new CarDriver(
+                "C1", "Ahmad", 32.2, 35.2, 10, 10
+        );
+
+        assertFalse(driver.canHandle(createOrder(10.000001)));
+        assertTrue(driver.canHandle(createOrder(10.0)));
+    }
 }

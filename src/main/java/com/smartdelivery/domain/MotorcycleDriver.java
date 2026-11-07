@@ -1,5 +1,8 @@
 package com.smartdelivery.domain;
 
+/**
+ * A motorcycle driver, who can deliver up to a configured maximum distance.
+ */
 public class MotorcycleDriver extends Driver {
 
     private double maxDeliveryDistance;
@@ -33,5 +36,16 @@ public class MotorcycleDriver extends Driver {
     @Override
     public boolean canHandleDelivery(Order order, double distance) {
         return order != null && canDeliver(distance);
+    }
+
+    /**
+     * A distance-limited driver cannot be verified without a distance.
+     *
+     * @param order the order to deliver
+     * @return always {@code false}
+     */
+    @Override
+    public boolean canHandleOrderWithoutDistance(Order order) {
+        return false;
     }
 }
