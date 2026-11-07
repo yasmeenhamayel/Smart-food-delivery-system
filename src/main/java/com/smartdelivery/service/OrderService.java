@@ -1,9 +1,13 @@
-
 package com.smartdelivery.service;
 
 import com.smartdelivery.domain.*;
 import com.smartdelivery.observer.OrderObserver;
+import com.smartdelivery.pricing.PricingStrategy;
 import com.smartdelivery.strategy.DriverSelectionStrategy;
+
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 public class OrderService {
@@ -26,12 +30,105 @@ public class OrderService {
         this.deliveryCostCalculator = deliveryCostCalculator;
     }
 
-    // US4.1 and US4.2: Place an order and calculate delivery cost
+    // US4.1 and US4.2: Original method - kept for backward compatibility
     public Order placeOrder(
             Restaurant restaurant,
             List<OrderItem> items,
             Address address,
             double distance) {
+
+        validateRestaurantAndAddress(restaurant, address);
+
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        Order order = new Order(items, deliveryCost);
+
+        return completeOrder(restaurant, address, order);
+    }
+
+    // Sprint 5: Create a standard order
+    public StandardOrder placeStandardOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance) {
+
+        validateRestaurantAndAddress(restaurant, address);
+
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        StandardOrder order = new StandardOrder(items, deliveryCost);
+
+        return completeOrder(restaurant, address, order);
+    }
+
+    // Sprint 5: Create an express order
+    public ExpressOrder placeExpressOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance,
+            double expressFee) {
+
+        validateRestaurantAndAddress(restaurant, address);
+
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        ExpressOrder order =
+                new ExpressOrder(items, deliveryCost, expressFee);
+
+        return completeOrder(restaurant, address, order);
+    }
+
+    // Sprint 5: Create a scheduled order
+    public ScheduledOrder placeScheduledOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance,
+            LocalDateTime scheduledDeliveryTime) {
+
+        return placeScheduledOrder(
+                restaurant,
+                items,
+                address,
+                distance,
+                scheduledDeliveryTime,
+                Clock.systemDefaultZone()
+        );
+    }
+
+    // Constructor with Clock to make date/time handling testable
+    public ScheduledOrder placeScheduledOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance,
+            LocalDateTime scheduledDeliveryTime,
+            Clock clock) {
+
+        validateRestaurantAndAddress(restaurant, address);
+
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        ScheduledOrder order = new ScheduledOrder(
+                items,
+                deliveryCost,
+                scheduledDeliveryTime,
+                clock
+        );
+
+        return completeOrder(restaurant, address, order);
+    }
+
+    // Validate common restaurant and address requirements
+    private void validateRestaurantAndAddress(
+            Restaurant restaurant,
+            Address address) {
 
         if (restaurant == null) {
             throw new IllegalArgumentException("Null Restaurant");
@@ -40,11 +137,13 @@ public class OrderService {
         if (address == null) {
             throw new IllegalArgumentException("Null Address");
         }
+    }
 
-        double deliveryCost =
-                deliveryCostCalculator.calculateDeliveryCost(distance);
-
-        Order order = new Order(items, deliveryCost);
+    // Complete order validation and register the observer
+    private <T extends Order> T completeOrder(
+            Restaurant restaurant,
+            Address address,
+            T order) {
 
         if (!restaurant.getDeliveryAreas().contains(address.getCity())) {
             throw new IllegalArgumentException(
@@ -72,7 +171,10 @@ public class OrderService {
         order.cancel();
     }
 
-    // US3.1: Assign a specific driver to an order
+    // US3.1: Assign a specific driver to an order. No distance is available,
+    // so the order only accepts drivers that can be verified without one
+    // (see Order#assignDriver(Driver)); distance-limited vehicles must use
+    // assignDriver(order, driver, distance).
     public void assignDriver(Order order, Driver driver) {
 
         if (order == null) {
@@ -86,7 +188,37 @@ public class OrderService {
         order.assignDriver(driver);
     }
 
-    // US3.2: Select a driver according to the given strategy
+    /**
+     * US5.4: Assigns a specific driver to an order only if the driver's
+     * vehicle type can handle the delivery of the given distance.
+     *
+     * <p>This is the assignment method to use for bicycle, motorcycle and
+     * electric vehicle drivers, whose rules depend on the distance. The
+     * eligibility check itself is enforced by the order, so it cannot be
+     * skipped through any other assignment method.</p>
+     *
+     * @param order the order to deliver
+     * @param driver the driver to assign
+     * @param distance the delivery distance in kilometres
+     * @throws IllegalArgumentException if an argument is null or the distance
+     *         is not positive and finite
+     * @throws IllegalStateException if the driver's vehicle cannot handle the
+     *         delivery, or the driver cannot be assigned
+     */
+    public void assignDriver(Order order, Driver driver, double distance) {
+
+        if (order == null) {
+            throw new IllegalArgumentException("Null Order");
+        }
+
+        if (driver == null) {
+            throw new IllegalArgumentException("Null Driver");
+        }
+
+        order.assignDriver(driver, distance);
+    }
+
+    // US3.2: Original method - kept for backward compatibility
     public Driver assignDriverUsingStrategy(
             Order order,
             List<Driver> drivers,
@@ -106,8 +238,19 @@ public class OrderService {
             throw new IllegalArgumentException("Null Driver Selection Strategy");
         }
 
+        // Without a distance, only drivers verifiable from the order alone
+        // are eligible (plain drivers, and cars within their capacity)
+        List<Driver> eligibleDrivers = new ArrayList<>();
+
+        for (Driver driver : drivers) {
+            if (driver != null &&
+                    driver.canHandleOrderWithoutDistance(order)) {
+                eligibleDrivers.add(driver);
+            }
+        }
+
         Driver selectedDriver = strategy.selectDriver(
-                drivers,
+                eligibleDrivers,
                 restaurantLatitude,
                 restaurantLongitude
         );
@@ -119,5 +262,86 @@ public class OrderService {
         assignDriver(order, selectedDriver);
 
         return selectedDriver;
+    }
+
+    // Sprint 5: Select a driver who can handle the order
+    public Driver assignDriverUsingStrategy(
+            Order order,
+            List<Driver> drivers,
+            double restaurantLatitude,
+            double restaurantLongitude,
+            double distance,
+            DriverSelectionStrategy strategy) {
+
+        if (order == null) {
+            throw new IllegalArgumentException("Null Order");
+        }
+
+        if (drivers == null) {
+            throw new IllegalArgumentException("Null Drivers List");
+        }
+
+        if (strategy == null) {
+            throw new IllegalArgumentException("Null Driver Selection Strategy");
+        }
+
+        if (distance <= 0 || !Double.isFinite(distance)) {
+            throw new IllegalArgumentException("Invalid delivery distance");
+        }
+
+        List<Driver> eligibleDrivers = new ArrayList<>();
+
+        for (Driver driver : drivers) {
+            if (driver != null &&
+                    driver.canHandleDelivery(order, distance)) {
+                eligibleDrivers.add(driver);
+            }
+        }
+
+        Driver selectedDriver = strategy.selectDriver(
+                eligibleDrivers,
+                restaurantLatitude,
+                restaurantLongitude
+        );
+
+        if (selectedDriver == null) {
+            throw new IllegalStateException(
+                    "No available driver capable of handling this order"
+            );
+        }
+
+        assignDriver(order, selectedDriver, distance);
+
+        return selectedDriver;
+    }
+
+    /**
+     * US4.3: Calculates the final price of an order using the given pricing
+     * strategy.
+     *
+     * <p>The strategy is applied to the food subtotal only, and the delivery
+     * cost is then added unchanged. The delivery cost of an express order
+     * already contains the Express surcharge, so the surcharge is counted
+     * exactly once. The order is not modified, and the result can differ from
+     * {@link Order#getTotal()}, which is not affected by pricing strategies.</p>
+     *
+     * @param order the order to price
+     * @param strategy the strategy applied to the food subtotal
+     * @return the priced food subtotal plus the delivery cost
+     */
+    public double calculateTotalWithPricing(
+            Order order,
+            PricingStrategy strategy) {
+
+        if (order == null) {
+            throw new IllegalArgumentException("Null Order");
+        }
+
+        if (strategy == null) {
+            throw new IllegalArgumentException("Null Pricing Strategy");
+        }
+
+        return strategy.calculatePrice(order.getItemTotal())
+                + order.getDeliveryCost();
     }
 }

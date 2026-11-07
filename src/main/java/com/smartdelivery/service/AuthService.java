@@ -9,6 +9,10 @@ import java.util.List;
  */
 public class AuthService {
 
+    /** The error message reported when the credentials are invalid. */
+    public static final String INVALID_CREDENTIALS_MESSAGE =
+            "Invalid username or password";
+
     /** The users available for authentication. */
     private final List<User> users;
 
@@ -37,5 +41,25 @@ public class AuthService {
         }
 
         return null;
+    }
+
+    /**
+     * Authenticates a user and reports an error message when the
+     * credentials are invalid.
+     *
+     * @param username the username entered by the user
+     * @param password the password entered by the user
+     * @return the authenticated user
+     * @throws IllegalArgumentException with {@link #INVALID_CREDENTIALS_MESSAGE}
+     *         if the username or password is wrong
+     */
+    public User authenticate(String username, String password) {
+        User user = login(username, password);
+
+        if (user == null) {
+            throw new IllegalArgumentException(INVALID_CREDENTIALS_MESSAGE);
+        }
+
+        return user;
     }
 }

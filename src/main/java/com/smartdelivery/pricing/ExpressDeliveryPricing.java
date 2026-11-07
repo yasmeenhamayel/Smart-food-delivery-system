@@ -1,6 +1,6 @@
 package com.smartdelivery.pricing;
 
-public class ExpressDeliveryPricing implements PricingStrategy {
+public class ExpressDeliveryPricing implements DeliveryCostStrategy {
 	private double expressFee;
 	
 	 public ExpressDeliveryPricing(double expressFee) {
@@ -11,8 +11,8 @@ public class ExpressDeliveryPricing implements PricingStrategy {
 	    }
 	 
 	 @Override
-	    public double calculatePrice(double basePrice) {
-	        return basePrice + expressFee;
+	    public double calculateDeliveryCost(double deliveryCost) {
+	        return deliveryCost + expressFee;
 	    }
 	 
 	 

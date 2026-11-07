@@ -55,4 +55,19 @@ class OrderItemTest {
 	            () -> new OrderItem(item, 1));
 	}
 	
+	@Test
+void calculatesTotalWeightCorrectly() {
+    MenuItem item = new MenuItem("Pizza", 12.5, true, 0.8);
+    OrderItem orderItem = new OrderItem(item, 3);
+
+    assertEquals(2.4, orderItem.getTotalWeight(), 0.001);
+}
+
+@Test
+void returnsZeroWeightForLegacyMenuItem() {
+    MenuItem item = new MenuItem("Pizza", 12.5, true);
+    OrderItem orderItem = new OrderItem(item, 2);
+
+    assertEquals(0.0, orderItem.getTotalWeight(), 0.001);
+}
 }
