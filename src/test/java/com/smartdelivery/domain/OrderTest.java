@@ -348,6 +348,21 @@ class OrderTest {
     }
 
     @Test
+    void notifiesObserverWhenOrderStartsPreparing() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        order.addObserver(observer);
+
+        order.confirm();
+        order.startPreparing();
+
+        verify(observer).onOrderStatusChanged(
+                order, OrderStatus.PREPARING
+        );
+    }
+
+    @Test
     void notifiesObserverWhenOrderBecomesReady() {
         Order order = createOrder();
         OrderObserver observer = mock(OrderObserver.class);
@@ -360,6 +375,23 @@ class OrderTest {
 
         verify(observer).onOrderStatusChanged(
                 order, OrderStatus.READY
+        );
+    }
+
+    @Test
+    void notifiesObserverWhenOrderIsOutForDelivery() {
+        Order order = createOrder();
+        OrderObserver observer = mock(OrderObserver.class);
+
+        order.addObserver(observer);
+
+        order.confirm();
+        order.startPreparing();
+        order.markReady();
+        order.markOutForDelivery();
+
+        verify(observer).onOrderStatusChanged(
+                order, OrderStatus.OUT_FOR_DELIVERY
         );
     }
 
@@ -381,21 +413,19 @@ class OrderTest {
         );
     }
 
-
     @Test
-void calculatesTotalWeightCorrectly() {
-    MenuItem pizza = new MenuItem("Pizza", 12.5, true, 0.8);
-    MenuItem burger = new MenuItem("Burger", 8.0, true, 0.5);
+    void calculatesTotalWeightCorrectly() {
+        MenuItem pizza = new MenuItem("Pizza", 12.5, true, 0.8);
+        MenuItem burger = new MenuItem("Burger", 8.0, true, 0.5);
 
-    OrderItem pizzaOrder = new OrderItem(pizza, 3);
-    OrderItem burgerOrder = new OrderItem(burger, 2);
+        OrderItem pizzaOrder = new OrderItem(pizza, 3);
+        OrderItem burgerOrder = new OrderItem(burger, 2);
 
-    Order order = new Order(
-        List.of(pizzaOrder, burgerOrder),
-        5.0
-    );
-    
+        Order order = new Order(
+                List.of(pizzaOrder, burgerOrder),
+                5.0
+        );
 
-    assertEquals(3.4, order.getTotalWeight(), 0.001);
-}
+        assertEquals(3.4, order.getTotalWeight(), 0.001);
+    }
 }
