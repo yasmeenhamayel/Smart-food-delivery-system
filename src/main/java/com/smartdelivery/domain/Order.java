@@ -158,4 +158,14 @@ public class Order {
     public Driver getDriver() {
         return driver;
     }
+
+    public double getTotalWeight() {
+    double totalWeight = 0;
+
+    for (OrderItem item : items) {
+        totalWeight += item.getTotalWeight();
+    }
+
+    return totalWeight;
+}
 }

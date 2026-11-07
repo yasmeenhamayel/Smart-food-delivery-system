@@ -1,9 +1,12 @@
-
 package com.smartdelivery.service;
 
 import com.smartdelivery.domain.*;
 import com.smartdelivery.observer.OrderObserver;
 import com.smartdelivery.strategy.DriverSelectionStrategy;
+
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 public class OrderService {
@@ -26,12 +29,105 @@ public class OrderService {
         this.deliveryCostCalculator = deliveryCostCalculator;
     }
 
-    // US4.1 and US4.2: Place an order and calculate delivery cost
+    // US4.1 and US4.2: Original method - kept for backward compatibility
     public Order placeOrder(
             Restaurant restaurant,
             List<OrderItem> items,
             Address address,
             double distance) {
+
+        validateRestaurantAndAddress(restaurant, address);
+
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        Order order = new Order(items, deliveryCost);
+
+        return completeOrder(restaurant, address, order);
+    }
+
+    // Sprint 5: Create a standard order
+    public StandardOrder placeStandardOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance) {
+
+        validateRestaurantAndAddress(restaurant, address);
+
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        StandardOrder order = new StandardOrder(items, deliveryCost);
+
+        return completeOrder(restaurant, address, order);
+    }
+
+    // Sprint 5: Create an express order
+    public ExpressOrder placeExpressOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance,
+            double expressFee) {
+
+        validateRestaurantAndAddress(restaurant, address);
+
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        ExpressOrder order =
+                new ExpressOrder(items, deliveryCost, expressFee);
+
+        return completeOrder(restaurant, address, order);
+    }
+
+    // Sprint 5: Create a scheduled order
+    public ScheduledOrder placeScheduledOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance,
+            LocalDateTime scheduledDeliveryTime) {
+
+        return placeScheduledOrder(
+                restaurant,
+                items,
+                address,
+                distance,
+                scheduledDeliveryTime,
+                Clock.systemDefaultZone()
+        );
+    }
+
+    // Constructor with Clock to make date/time handling testable
+    public ScheduledOrder placeScheduledOrder(
+            Restaurant restaurant,
+            List<OrderItem> items,
+            Address address,
+            double distance,
+            LocalDateTime scheduledDeliveryTime,
+            Clock clock) {
+
+        validateRestaurantAndAddress(restaurant, address);
+
+        double deliveryCost =
+                deliveryCostCalculator.calculateDeliveryCost(distance);
+
+        ScheduledOrder order = new ScheduledOrder(
+                items,
+                deliveryCost,
+                scheduledDeliveryTime,
+                clock
+        );
+
+        return completeOrder(restaurant, address, order);
+    }
+
+    // Validate common restaurant and address requirements
+    private void validateRestaurantAndAddress(
+            Restaurant restaurant,
+            Address address) {
 
         if (restaurant == null) {
             throw new IllegalArgumentException("Null Restaurant");
@@ -40,11 +136,13 @@ public class OrderService {
         if (address == null) {
             throw new IllegalArgumentException("Null Address");
         }
+    }
 
-        double deliveryCost =
-                deliveryCostCalculator.calculateDeliveryCost(distance);
-
-        Order order = new Order(items, deliveryCost);
+    // Complete order validation and register the observer
+    private <T extends Order> T completeOrder(
+            Restaurant restaurant,
+            Address address,
+            T order) {
 
         if (!restaurant.getDeliveryAreas().contains(address.getCity())) {
             throw new IllegalArgumentException(
@@ -86,7 +184,7 @@ public class OrderService {
         order.assignDriver(driver);
     }
 
-    // US3.2: Select a driver according to the given strategy
+    // US3.2: Original method - kept for backward compatibility
     public Driver assignDriverUsingStrategy(
             Order order,
             List<Driver> drivers,
@@ -114,6 +212,57 @@ public class OrderService {
 
         if (selectedDriver == null) {
             throw new IllegalStateException("No available driver");
+        }
+
+        assignDriver(order, selectedDriver);
+
+        return selectedDriver;
+    }
+
+    // Sprint 5: Select a driver who can handle the order
+    public Driver assignDriverUsingStrategy(
+            Order order,
+            List<Driver> drivers,
+            double restaurantLatitude,
+            double restaurantLongitude,
+            double distance,
+            DriverSelectionStrategy strategy) {
+
+        if (order == null) {
+            throw new IllegalArgumentException("Null Order");
+        }
+
+        if (drivers == null) {
+            throw new IllegalArgumentException("Null Drivers List");
+        }
+
+        if (strategy == null) {
+            throw new IllegalArgumentException("Null Driver Selection Strategy");
+        }
+
+        if (distance <= 0 || !Double.isFinite(distance)) {
+            throw new IllegalArgumentException("Invalid delivery distance");
+        }
+
+        List<Driver> eligibleDrivers = new ArrayList<>();
+
+        for (Driver driver : drivers) {
+            if (driver != null &&
+                    driver.canHandleDelivery(order, distance)) {
+                eligibleDrivers.add(driver);
+            }
+        }
+
+        Driver selectedDriver = strategy.selectDriver(
+                eligibleDrivers,
+                restaurantLatitude,
+                restaurantLongitude
+        );
+
+        if (selectedDriver == null) {
+            throw new IllegalStateException(
+                    "No available driver capable of handling this order"
+            );
         }
 
         assignDriver(order, selectedDriver);

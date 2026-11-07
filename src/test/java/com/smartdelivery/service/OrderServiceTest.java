@@ -643,4 +643,153 @@ public class OrderServiceTest {
         assertNull(order.getDriver());
         assertEquals(DriverStatus.AVAILABLE, driver.getStatus());
     }
+
+
+        // =========================
+    // Sprint 5 - Polymorphic Driver Selection
+    // =========================
+
+    @Test
+    void skipsBicycleDriverWhenDeliveryDistanceExceedsItsLimit() {
+
+        Order order = new Order(List.of(
+                new OrderItem(new MenuItem("Pizza", 15, true), 2)
+        ), 0);
+
+        BicycleDriver bicycleDriver = new BicycleDriver(
+                "D1", "Ahmad", 32.22, 35.25, 20, 3
+        );
+
+        MotorcycleDriver motorcycleDriver = new MotorcycleDriver(
+                "D2", "Omar", 32.30, 35.35, 15, 10
+        );
+
+        OrderService service = createService();
+
+        Driver result = service.assignDriverUsingStrategy(
+                order,
+                List.of(bicycleDriver, motorcycleDriver),
+                32.22,
+                35.25,
+                5,
+                new NearestDriverStrategy()
+        );
+
+        assertSame(motorcycleDriver, result);
+        assertSame(motorcycleDriver, order.getDriver());
+
+        assertEquals(DriverStatus.AVAILABLE, bicycleDriver.getStatus());
+        assertEquals(DriverStatus.BUSY, motorcycleDriver.getStatus());
+    }
+
+    @Test
+    void rejectsAssignmentWhenNoDriverCanHandleDelivery() {
+
+        Order order = new Order(List.of(
+                new OrderItem(new MenuItem("Pizza", 15, true), 2)
+        ), 0);
+
+        BicycleDriver bicycleDriver = new BicycleDriver(
+                "D1", "Ahmad", 32.22, 35.25, 20, 3
+        );
+
+        OrderService service = createService();
+
+        assertThrows(IllegalStateException.class,
+                () -> service.assignDriverUsingStrategy(
+                        order,
+                        List.of(bicycleDriver),
+                        32.22,
+                        35.25,
+                        5,
+                        new NearestDriverStrategy()
+                ));
+
+        assertNull(order.getDriver());
+        assertEquals(DriverStatus.AVAILABLE, bicycleDriver.getStatus());
+    }
+
+    @Test
+    void rejectsCarDriverWhenOrderWeightExceedsItsLimit() {
+
+        MenuItem menu = new MenuItem("Pizza", 15, true, 0.8);
+        OrderItem item = new OrderItem(menu, 3);
+
+        Order order = new Order(List.of(item), 0);
+
+        CarDriver carDriver = new CarDriver(
+                "D1", "Ahmad", 32.22, 35.25, 20, 2
+        );
+
+        OrderService service = createService();
+
+        assertThrows(IllegalStateException.class,
+                () -> service.assignDriverUsingStrategy(
+                        order,
+                        List.of(carDriver),
+                        32.22,
+                        35.25,
+                        5,
+                        new NearestDriverStrategy()
+                ));
+
+        assertEquals(2.4, order.getTotalWeight(), 0.001);
+        assertNull(order.getDriver());
+        assertEquals(DriverStatus.AVAILABLE, carDriver.getStatus());
+    }
+
+    @Test
+    void assignsCarDriverWhenOrderWeightIsWithinItsLimit() {
+
+        MenuItem menu = new MenuItem("Pizza", 15, true, 0.8);
+        OrderItem item = new OrderItem(menu, 3);
+
+        Order order = new Order(List.of(item), 0);
+
+        CarDriver carDriver = new CarDriver(
+                "D1", "Ahmad", 32.22, 35.25, 20, 3
+        );
+
+        OrderService service = createService();
+
+        Driver result = service.assignDriverUsingStrategy(
+                order,
+                List.of(carDriver),
+                32.22,
+                35.25,
+                5,
+                new NearestDriverStrategy()
+        );
+
+        assertSame(carDriver, result);
+        assertSame(carDriver, order.getDriver());
+        assertEquals(DriverStatus.BUSY, carDriver.getStatus());
+    }
+
+    @Test
+    void rejectsInvalidDistanceInPolymorphicDriverSelection() {
+
+        Order order = new Order(List.of(
+                new OrderItem(new MenuItem("Pizza", 15, true), 2)
+        ), 0);
+
+        Driver driver = new Driver(
+                "D1", "Ahmad", 32.22, 35.25, 20
+        );
+
+        OrderService service = createService();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assignDriverUsingStrategy(
+                        order,
+                        List.of(driver),
+                        32.22,
+                        35.25,
+                        0,
+                        new NearestDriverStrategy()
+                ));
+
+        assertNull(order.getDriver());
+        assertEquals(DriverStatus.AVAILABLE, driver.getStatus());
+    }
 }

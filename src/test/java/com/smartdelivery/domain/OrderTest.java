@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class OrderTest {
@@ -379,4 +380,22 @@ class OrderTest {
                 order, OrderStatus.DELIVERED
         );
     }
+
+
+    @Test
+void calculatesTotalWeightCorrectly() {
+    MenuItem pizza = new MenuItem("Pizza", 12.5, true, 0.8);
+    MenuItem burger = new MenuItem("Burger", 8.0, true, 0.5);
+
+    OrderItem pizzaOrder = new OrderItem(pizza, 3);
+    OrderItem burgerOrder = new OrderItem(burger, 2);
+
+    Order order = new Order(
+        List.of(pizzaOrder, burgerOrder),
+        5.0
+    );
+    
+
+    assertEquals(3.4, order.getTotalWeight(), 0.001);
+}
 }

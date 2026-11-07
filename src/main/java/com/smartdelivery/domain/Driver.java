@@ -73,6 +73,9 @@ public class Driver {
     public String getName() {
         return name;
     }
+    public boolean canHandleDelivery(Order order, double distance) {
+    return true;
+}
 
     /** @return the driver's current status */
     public DriverStatus getStatus() {
